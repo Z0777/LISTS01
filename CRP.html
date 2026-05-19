@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planificador de Aplicaciones Agrícolas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; overflow: hidden; }
+        
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+        
+        .panel-slide-in { transform: translateX(100%); transition: transform 0.3s ease-in-out; }
+        .panel-slide-in.open { transform: translateX(0); }
+        
+        .overlay { opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .overlay.open { opacity: 1; pointer-events: auto; }
+
+        .nav-item.active { background-color: #14532d; border-left-color: #4ade80; color: white; }
+        .nav-item { border-left-color: transparent; }
+
+        /* Categorías Toxicológicas (Colores Oficiales) */
+        .tox-rojo { border-left-color: #ef4444 !important; } /* Cat I */
+        .tox-amarillo { border-left-color: #eab308 !important; } /* Cat II */
+        .tox-azul { border-left-color: #3b82f6 !important; } /* Cat III */
+        .tox-verde { border-left-color: #22c55e !important; } /* Cat IV */
+    </style>
+</head>
+<body class="flex h-screen text-gray-800">
+
+    <!-- Sidebar de Navegación -->
+    <aside class="w-20 lg:w-64 bg-green-800 text-white flex flex-col transition-all duration-300 shadow-xl z-20">
+        <div class="h-16 flex items-center justify-center lg:justify-start lg:px-6 border-b border-green-700">
+            <i class="fa-solid fa-leaf text-2xl text-green-400"></i>
+            <span class="ml-3 font-bold text-xl hidden lg:block tracking-wide">AgroPlan</span>
+        </div>
+        <nav class="flex-1 py-6 space-y-2" id="main-nav">
+            <a href="#" onclick="setActiveNav(this)" class="nav-item active flex items-center px-6 py-3 text-green-100 border-l-4 hover:bg-green-700 hover:text-white transition-colors">
+                <i class="fa-solid fa-calendar-week text-lg w-6"></i>
+                <span class="ml-3 hidden lg:block font-medium">Planificador</span>
+            </a>
+            <a href="#" onclick="setActiveNav(this)" class="nav-item flex items-center px-6 py-3 text-green-100 border-l-4 hover:bg-green-700 hover:text-white transition-colors">
+                <i class="fa-solid fa-clipboard-list text-lg w-6"></i>
+                <span class="ml-3 hidden lg:block font-medium">Mis Tareas (Operador)</span>
+            </a>
+            <a href="#" onclick="setActiveNav(this)" class="nav-item flex items-center px-6 py-3 text-green-100 border-l-4 hover:bg-green-700 hover:text-white transition-colors">
+                <i class="fa-solid fa-vial text-lg w-6"></i>
+                <span class="ml-3 hidden lg:block font-medium">Catálogo Mezclas</span>
+            </a>
+        </nav>
+        <div class="p-4 border-t border-green-700 flex items-center">
+            <div class="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center text-sm font-bold border-2 border-white mx-auto lg:mx-0 flex-shrink-0">
+                IR
+            </div>
+            <div class="hidden lg:block ml-3 overflow-hidden">
+                <div class="text-sm font-bold truncate">Ing. Roberto</div>
+                <div class="text-xs text-green-300 truncate">Planificador</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Contenido Principal -->
+    <main class="flex-1 flex flex-col h-screen overflow-hidden bg-gray-100 relative">
+        
+        <!-- Header -->
+        <header class="h-16 bg-white shadow-sm flex items-center justify-between px-6 z-10 flex-shrink-0">
+            <div class="flex items-center space-x-4">
+                <h1 class="text-xl font-bold text-gray-800 hidden sm:block">Semana Actual</h1>
+                <div class="flex bg-gray-100 rounded-lg p-1 border border-gray-200">
+                    <button class="px-3 py-1 hover:bg-white rounded text-gray-600 shadow-sm"><i class="fa-solid fa-chevron-left"></i></button>
+                    <button class="px-4 py-1 font-medium text-gray-700">Hoy</button>
+                    <button class="px-3 py-1 hover:bg-white rounded text-gray-600 shadow-sm"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <div class="hidden lg:flex items-center space-x-4 text-xs mr-4 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
+                    <span class="font-bold text-gray-500 mr-2">Niveles Tóxicos:</span>
+                    <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-red-500 mr-1"></span> I</span>
+                    <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-yellow-500 mr-1"></span> II</span>
+                    <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-blue-500 mr-1"></span> III</span>
+                    <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-green-500 mr-1"></span> IV</span>
+                </div>
+                <button onclick="abrirPanel()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium shadow flex items-center transition-colors">
+                    <i class="fa-solid fa-plus mr-2"></i> <span class="hidden sm:inline">Programar Aplicación</span><span class="sm:hidden">Nueva</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Tablero Kanban / Calendario -->
+        <div class="flex-1 overflow-x-auto overflow-y-hidden p-6 custom-scroll">
+            <div class="flex space-x-4 h-full min-w-max pb-2" id="board-container">
+                <!-- Las columnas se generan dinámicamente aquí -->
+            </div>
+        </div>
+    </main>
+
+    <!-- OVERLAY OSCURO -->
+    <div id="backdrop" class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-30 overlay" onclick="cerrarPanel()"></div>
+
+    <!-- PANEL LATERAL DE EDICIÓN / CREACIÓN -->
+    <aside id="side-panel" class="fixed top-0 right-0 w-full max-w-md md:max-w-xl h-full bg-white shadow-2xl z-40 panel-slide-in flex flex-col border-l border-gray-200">
+        
+        <input type="hidden" id="form-id">
+        
+        <!-- Panel Header -->
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 flex-shrink-0">
+            <div>
+                <h2 class="text-xl font-bold text-gray-800" id="panel-title">Programar Aplicación</h2>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button id="btn-delete" onclick="eliminarProgramacion()" class="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors tooltip hidden" title="Eliminar">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+                <button onclick="cerrarPanel()" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Panel Body -->
+        <div class="flex-1 overflow-y-auto p-6 custom-scroll space-y-6">
+            
+            <!-- SECCIÓN 1: ¿Cuándo y Quién? -->
+            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                <h3 class="text-sm font-bold text-blue-800 mb-3 uppercase tracking-wider flex items-center"><i class="fa-regular fa-calendar-days mr-2"></i> 1. Coordinación</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2">
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Título / Motivo Principal</label>
+                        <input type="text" id="form-titulo" placeholder="Ej. Prevención Araña Roja" class="w-full p-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Día de la semana</label>
+                        <select id="form-dia" class="w-full p-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <option value="lunes">Lunes</option>
+                            <option value="martes">Martes</option>
+                            <option value="miercoles">Miércoles</option>
+                            <option value="jueves">Jueves</option>
+                            <option value="viernes">Viernes</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Turno</label>
+                        <select id="form-turno" class="w-full p-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <option value="Turno 1 (Mañana)">Turno 1 (Mañana)</option>
+                            <option value="Turno 2 (Mediodía)">Turno 2 (Mediodía)</option>
+                            <option value="Turno 3 (Tarde)">Turno 3 (Tarde)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Responsable</label>
+                        <select id="form-responsable" class="w-full p-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <option value="Juan Pérez">Juan Pérez</option>
+                            <option value="Luis A.">Luis A.</option>
+                            <option value="Carlos M.">Carlos M.</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Estado</label>
+                        <select id="form-estado" class="w-full p-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <option value="Programada">Programada</option>
+                            <option value="En Curso">En Curso</option>
+                            <option value="Completada">Completada</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 2: ¿Dónde? -->
+            <div>
+                <h3 class="text-sm font-bold text-gray-700 mb-3 border-b pb-1">2. Áreas Destino (Invernaderos)</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-2" id="container-invernaderos">
+                    <label class="flex items-center space-x-2 p-2 border rounded cursor-pointer hover:bg-green-50 hover:border-green-300 bg-white">
+                        <input type="checkbox" value="Inv. 1" class="chk-inv rounded text-green-600 focus:ring-green-500">
+                        <span class="text-sm text-gray-700">Inv. 1</span>
+                    </label>
+                    <label class="flex items-center space-x-2 p-2 border rounded cursor-pointer hover:bg-green-50 hover:border-green-300 bg-white">
+                        <input type="checkbox" value="Inv. 2" class="chk-inv rounded text-green-600 focus:ring-green-500">
+                        <span class="text-sm text-gray-700">Inv. 2</span>
+                    </label>
+                    <label class="flex items-center space-x-2 p-2 border rounded cursor-pointer hover:bg-green-50 hover:border-green-300 bg-white">
+                        <input type="checkbox" value="Inv. 4" class="chk-inv rounded text-green-600 focus:ring-green-500">
+                        <span class="text-sm text-gray-700">Inv. 4</span>
+                    </label>
+                    <label class="flex items-center space-x-2 p-2 border rounded cursor-pointer hover:bg-green-50 hover:border-green-300 bg-white">
+                        <input type="checkbox" value="Inv. 5" class="chk-inv rounded text-green-600 focus:ring-green-500">
+                        <span class="text-sm text-gray-700">Inv. 5</span>
+                    </label>
+                    <label class="flex items-center space-x-2 p-2 border rounded cursor-pointer hover:bg-green-50 hover:border-green-300 bg-white">
+                        <input type="checkbox" value="Semillero" class="chk-inv rounded text-green-600 focus:ring-green-500">
+                        <span class="text-sm text-gray-700">Semillero</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 3: Catálogo y Mezcla -->
+            <div>
+                <div class="flex justify-between items-end mb-3 border-b pb-1">
+                    <h3 class="text-sm font-bold text-gray-700">3. Formulación (Catálogo Técnico)</h3>
+                    <button type="button" onclick="agregarFilaProducto()" class="text-xs text-green-600 hover:text-green-800 font-medium"><i class="fa-solid fa-plus"></i> Añadir Insumo</button>
+                </div>
+                
+                <div id="lista-productos" class="space-y-3">
+                    <!-- Filas dinámicas -->
+                </div>
+                
+                <!-- Resumen Automático de Mezcla -->
+                <div id="resumen-mezcla" class="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-3 hidden">
+                    <p class="text-xs font-bold text-gray-600 mb-1"><i class="fa-solid fa-calculator mr-1"></i> Resumen de Seguridad (Automático)</p>
+                    <div class="flex justify-between text-xs mt-2">
+                        <span>Max Reingreso: <strong id="calc-reingreso" class="text-red-600">-- horas</strong></span>
+                        <span>Banda Tóxica: <strong id="calc-tox" class="px-2 py-0.5 rounded text-white bg-gray-400">--</strong></span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Panel Footer -->
+        <div class="p-4 border-t border-gray-200 bg-white flex justify-end space-x-3 flex-shrink-0">
+            <button onclick="cerrarPanel()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors">
+                Cancelar
+            </button>
+            <button id="btn-save" onclick="guardarProgramacion()" class="px-6 py-2 bg-green-600 rounded-lg text-white font-medium hover:bg-green-700 shadow transition-colors flex items-center">
+                <i class="fa-solid fa-save mr-2"></i> Guardar
+            </button>
+        </div>
+
+    </aside>
+
+    <script>
+        // --- BASE DE DATOS: CATÁLOGO DE INSUMOS (Simulando SharePoint) ---
+        const catalogoInsumos = [
+            { id: 1, nombre: 'Abamectina 1.8% CE', ia: 'Abamectina', irac: '6', frac: null, tipo: 'Acaricida', toxColor: 'amarillo', toxNivel: 2, reingresoHoras: 24, dosisDefecto: '1.5 ml/L' },
+            { id: 2, nombre: 'Imidacloprid 350 SC', ia: 'Imidacloprid', irac: '4A', frac: null, tipo: 'Insecticida', toxColor: 'azul', toxNivel: 3, reingresoHoras: 12, dosisDefecto: '1.0 ml/L' },
+            { id: 3, nombre: 'Azufre 80% WG', ia: 'Azufre Elemental', irac: null, frac: 'M02', tipo: 'Fungicida', toxColor: 'verde', toxNivel: 4, reingresoHoras: 4, dosisDefecto: '2.5 g/L' },
+            { id: 4, nombre: 'Metomilo 90%', ia: 'Metomilo', irac: '1A', frac: null, tipo: 'Insecticida', toxColor: 'rojo', toxNivel: 1, reingresoHoras: 48, dosisDefecto: '0.5 g/L' },
+            { id: 5, nombre: 'Fertilizante Foliar 20-20-20', ia: 'NPK', irac: null, frac: null, tipo: 'Nutricional', toxColor: 'verde', toxNivel: 4, reingresoHoras: 0, dosisDefecto: '2.0 g/L' }
+        ];
+
+        // --- BASE DE DATOS: ÓRDENES ---
+        let tareas = [
+            { 
+                id: 'ORD-1001', titulo: 'Prevención Araña Roja', dia: 'lunes', turno: 'Turno 1 (Mañana)', responsable: 'Juan Pérez', estado: 'Programada', invernaderos: ['Inv. 1', 'Inv. 2'], 
+                productos: [
+                    { insumoId: 1, dosis: '1.5 ml/L' }, // Abamectina (Amarillo, 24h)
+                    { insumoId: 3, dosis: '2.5 g/L' }   // Azufre (Verde, 4h)
+                ] 
+            },
+            { 
+                id: 'ORD-1002', titulo: 'Aplicación Nutricional', dia: 'lunes', turno: 'Turno 3 (Tarde)', responsable: 'Carlos M.', estado: 'Programada', invernaderos: ['Semillero'], 
+                productos: [ { insumoId: 5, dosis: '2.0 g/L' } ] // Nutricional (Verde, 0h)
+            },
+            { 
+                id: 'ORD-1003', titulo: 'Control Mosca Blanca Fuerte', dia: 'martes', turno: 'Turno 2 (Mediodía)', responsable: 'Luis A.', estado: 'En Curso', invernaderos: ['Inv. 4', 'Inv. 5'], 
+                productos: [ { insumoId: 2, dosis: '1.0 ml/L' } ] // Imidacloprid (Azul, 12h)
+            }
+        ];
+
+        const diasSemana = [
+            { id: 'lunes', nombre: 'LUNES', fecha: '16 Oct' },
+            { id: 'martes', nombre: 'MARTES', fecha: '17 Oct (Hoy)' },
+            { id: 'miercoles', nombre: 'MIÉRCOLES', fecha: '18 Oct' },
+            { id: 'jueves', nombre: 'JUEVES', fecha: '19 Oct' },
+            { id: 'viernes', nombre: 'VIERNES', fecha: '20 Oct' }
+        ];
+
+        // Función para calcular la toxicidad y el reingreso máximo de una mezcla
+        function calcularDatosMezcla(productosMezcla) {
+            let maxReingreso = 0;
+            let peorToxNivel = 5; // 1 es el peor (Rojo)
+            let colorBanda = 'verde';
+            let ias = [];
+            let clasificaciones = [];
+
+            productosMezcla.forEach(p => {
+                const insumo = catalogoInsumos.find(i => i.id == p.insumoId);
+                if (insumo) {
+                    if (insumo.reingresoHoras > maxReingreso) maxReingreso = insumo.reingresoHoras;
+                    if (insumo.toxNivel < peorToxNivel) {
+                        peorToxNivel = insumo.toxNivel;
+                        colorBanda = insumo.toxColor;
+                    }
+                    if(insumo.ia) ias.push(insumo.ia);
+                    if(insumo.irac) clasificaciones.push('IRAC ' + insumo.irac);
+                    if(insumo.frac) clasificaciones.push('FRAC ' + insumo.frac);
+                }
+            });
+
+            return { maxReingreso, colorBanda, ias: ias.join(' + '), clasificaciones: clasificaciones.join(', ') };
+        }
+
+        // --- RENDERIZADO DEL TABLERO ---
+        function renderBoard() {
+            const container = document.getElementById('board-container');
+            container.innerHTML = '';
+
+            diasSemana.forEach(dia => {
+                const tareasDia = tareas.filter(t => t.dia === dia.id);
+                
+                let colClass = "bg-gray-50";
+                let headerClass = "border-gray-200 bg-white text-gray-700";
+                let titleClass = "text-gray-700";
+                
+                if(dia.id === 'martes') { 
+                    colClass = "bg-green-50 border-green-200 shadow-md";
+                    headerClass = "border-green-200 bg-green-100/50";
+                    titleClass = "text-green-800";
+                }
+
+                let html = `
+                <div class="w-80 flex flex-col ${colClass} rounded-xl border border-gray-200 shadow-sm h-full flex-shrink-0">
+                    <div class="p-3 border-b ${headerClass} rounded-t-xl flex justify-between items-center">
+                        <h2 class="font-bold ${titleClass}">${dia.nombre} <span class="text-xs font-normal ml-1 opacity-70">${dia.fecha}</span></h2>
+                        <span class="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full font-bold">${tareasDia.length} apps</span>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-3 space-y-3 custom-scroll">
+                `;
+
+                tareasDia.forEach(tarea => {
+                    // CALCULOS TÉCNICOS DE LA TARJETA
+                    const datosMezcla = calcularDatosMezcla(tarea.productos);
+                    
+                    // La clase de borde ahora depende de la Categoría Toxicológica
+                    let borderClass = `tox-${datosMezcla.colorBanda} border-l-[6px]`; 
+
+                    let statusHtml = '';
+                    if(tarea.estado === 'En Curso') statusHtml = '<span class="text-[10px] font-bold text-blue-600 bg-blue-100 border border-blue-200 px-1.5 py-0.5 rounded shadow-sm">EN CURSO</span>';
+
+                    html += `
+                    <div onclick="abrirPanel('${tarea.id}')" class="bg-white ${borderClass} p-3 rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-all relative overflow-hidden">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-[10px] font-bold text-gray-600 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded shadow-sm">${tarea.turno}</span>
+                            ${statusHtml}
+                        </div>
+                        <h3 class="font-bold text-gray-800 text-sm mb-1">${tarea.titulo}</h3>
+                        
+                        <!-- DATOS TÉCNICOS INYECTADOS -->
+                        <div class="mb-2">
+                            <p class="text-[10px] text-gray-500 font-medium uppercase truncate" title="${datosMezcla.ias}">${datosMezcla.ias || 'Sin IA'}</p>
+                            ${datosMezcla.clasificaciones ? `<p class="text-[9px] text-gray-400 font-mono mt-0.5">${datosMezcla.clasificaciones}</p>` : ''}
+                        </div>
+
+                        <div class="text-xs text-gray-600 mb-2 space-y-1 bg-gray-50 p-2 rounded border border-gray-100">
+                            <p class="flex items-start"><i class="fa-solid fa-location-dot text-gray-400 w-4 mt-0.5"></i> <span class="line-clamp-1 flex-1">${tarea.invernaderos.join(', ') || 'Sin área'}</span></p>
+                            <p class="flex items-center"><i class="fa-solid fa-user text-gray-400 w-4"></i> <span class="font-medium text-blue-700">${tarea.responsable}</span></p>
+                        </div>
+
+                        <!-- ALERTA DE REINGRESO -->
+                        <div class="flex items-center text-[10px] bg-red-50 text-red-700 border border-red-100 px-2 py-1 rounded font-bold">
+                            <i class="fa-solid fa-lock mr-1.5"></i> Reingreso: ${datosMezcla.maxReingreso} hrs
+                        </div>
+                    </div>
+                    `;
+                });
+
+                html += `</div></div>`;
+                container.innerHTML += html;
+            });
+        }
+
+        // --- LÓGICA DEL PANEL ---
+        const panel = document.getElementById('side-panel');
+        const backdrop = document.getElementById('backdrop');
+
+        function generarOpcionesInsumos(selectedId = null) {
+            return catalogoInsumos.map(i => `<option value="${i.id}" ${selectedId == i.id ? 'selected' : ''}>${i.nombre} (${i.ia})</option>`).join('');
+        }
+
+        function abrirPanel(id = null) {
+            document.getElementById('form-id').value = '';
+            document.getElementById('form-titulo').value = '';
+            document.getElementById('form-estado').value = 'Programada';
+            document.querySelectorAll('.chk-inv').forEach(chk => chk.checked = false);
+            document.getElementById('lista-productos').innerHTML = '';
+            document.getElementById('resumen-mezcla').classList.add('hidden');
+            
+            if (id) {
+                document.getElementById('panel-title').innerText = "Editar: " + id;
+                document.getElementById('btn-delete').classList.remove('hidden');
+                
+                const tarea = tareas.find(t => t.id === id);
+                if(tarea) {
+                    document.getElementById('form-id').value = tarea.id;
+                    document.getElementById('form-titulo').value = tarea.titulo;
+                    document.getElementById('form-dia').value = tarea.dia;
+                    document.getElementById('form-turno').value = tarea.turno;
+                    document.getElementById('form-responsable').value = tarea.responsable;
+                    document.getElementById('form-estado').value = tarea.estado;
+                    
+                    tarea.invernaderos.forEach(inv => {
+                        const chk = document.querySelector(`.chk-inv[value="${inv}"]`);
+                        if(chk) chk.checked = true;
+                    });
+
+                    tarea.productos.forEach(p => agregarFilaProducto(p.insumoId, p.dosis));
+                    actualizarResumenMezcla();
+                }
+            } else {
+                document.getElementById('panel-title').innerText = "Programar Aplicación";
+                document.getElementById('btn-delete').classList.add('hidden');
+                agregarFilaProducto();
+            }
+
+            panel.classList.add('open');
+            backdrop.classList.add('open');
+        }
+
+        function cerrarPanel() {
+            panel.classList.remove('open');
+            backdrop.classList.remove('open');
+        }
+
+        // --- GESTIÓN DE PRODUCTOS DEL CATÁLOGO ---
+        function agregarFilaProducto(insumoId = '', dosis = '') {
+            const container = document.getElementById('lista-productos');
+            const rowId = 'prod-' + Date.now();
+            
+            const div = document.createElement('div');
+            div.className = "flex flex-col sm:flex-row gap-2 items-end bg-gray-50 p-3 rounded border border-gray-200 fila-producto";
+            div.id = rowId;
+            
+            div.innerHTML = `
+                <div class="w-full sm:flex-1">
+                    <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1">Seleccionar Insumo</label>
+                    <select class="input-prod-id w-full p-2 text-sm border border-gray-300 rounded outline-none bg-white focus:ring-2 focus:ring-green-500" onchange="alCambiarInsumo(this, '${rowId}')">
+                        <option value="">Seleccione del catálogo...</option>
+                        ${generarOpcionesInsumos(insumoId)}
+                    </select>
+                </div>
+                <div class="w-full sm:w-28">
+                    <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1">Dosis Recomendada</label>
+                    <input type="text" value="${dosis}" class="input-prod-dosis w-full p-2 text-sm border border-gray-300 rounded outline-none text-center bg-white focus:ring-2 focus:ring-green-500" placeholder="Ej. 1 L/Ha">
+                </div>
+                <button type="button" onclick="document.getElementById('${rowId}').remove(); actualizarResumenMezcla();" class="p-2 text-red-400 hover:text-white hover:bg-red-500 border border-gray-300 rounded bg-white transition-colors"><i class="fa-solid fa-trash-can"></i></button>
+            `;
+            container.appendChild(div);
+            
+            if(insumoId) actualizarResumenMezcla();
+        }
+
+        function alCambiarInsumo(selectElement, rowId) {
+            const row = document.getElementById(rowId);
+            const dosisInput = row.querySelector('.input-prod-dosis');
+            
+            const insumoId = selectElement.value;
+            if(insumoId) {
+                const insumo = catalogoInsumos.find(i => i.id == insumoId);
+                if(insumo) dosisInput.value = insumo.dosisDefecto; // Autocompletar Dosis default
+            }
+            actualizarResumenMezcla();
+        }
+
+        function actualizarResumenMezcla() {
+            const filas = document.querySelectorAll('.fila-producto');
+            let productosFormulario = [];
+            
+            filas.forEach(fila => {
+                const select = fila.querySelector('.input-prod-id');
+                if(select.value) productosFormulario.push({ insumoId: select.value });
+            });
+
+            const resumenDiv = document.getElementById('resumen-mezcla');
+            
+            if(productosFormulario.length > 0) {
+                const datos = calcularDatosMezcla(productosFormulario);
+                
+                document.getElementById('calc-reingreso').innerText = datos.maxReingreso + ' horas';
+                
+                const spanTox = document.getElementById('calc-tox');
+                spanTox.innerText = datos.colorBanda.toUpperCase();
+                spanTox.className = `px-2 py-0.5 rounded text-white font-bold text-[10px] bg-${datos.colorBanda === 'rojo' ? 'red-500' : datos.colorBanda === 'amarillo' ? 'yellow-500' : datos.colorBanda === 'azul' ? 'blue-500' : 'green-500'}`;
+
+                resumenDiv.classList.remove('hidden');
+            } else {
+                resumenDiv.classList.add('hidden');
+            }
+        }
+
+        // --- GUARDAR ---
+        function guardarProgramacion() {
+            const btn = document.getElementById('btn-save');
+            const titulo = document.getElementById('form-titulo').value;
+            if(!titulo.trim()) return alert("Ingrese un Título.");
+
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Guardando...';
+            
+            setTimeout(() => {
+                const id = document.getElementById('form-id').value;
+                const invernaderos = Array.from(document.querySelectorAll('.chk-inv:checked')).map(chk => chk.value);
+                
+                const productos = Array.from(document.querySelectorAll('.fila-producto')).map(fila => {
+                    return {
+                        insumoId: fila.querySelector('.input-prod-id').value,
+                        dosis: fila.querySelector('.input-prod-dosis').value
+                    };
+                }).filter(p => p.insumoId !== '');
+
+                const nuevaTarea = {
+                    id: id ? id : 'ORD-' + Math.floor(Math.random() * 10000),
+                    titulo: titulo,
+                    dia: document.getElementById('form-dia').value,
+                    turno: document.getElementById('form-turno').value,
+                    responsable: document.getElementById('form-responsable').value,
+                    estado: document.getElementById('form-estado').value,
+                    invernaderos: invernaderos,
+                    productos: productos
+                };
+
+                if (id) {
+                    const index = tareas.findIndex(t => t.id === id);
+                    if(index !== -1) tareas[index] = nuevaTarea;
+                } else {
+                    tareas.push(nuevaTarea);
+                }
+
+                renderBoard();
+                cerrarPanel();
+                btn.innerHTML = '<i class="fa-solid fa-save mr-2"></i> Guardar';
+            }, 500);
+        }
+
+        window.onload = renderBoard;
+    </script>
+</body>
+</html>
